@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShEC Football Tournament</title>
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2b6cb0;
+            --accent: #38b2ac;
+            --bg: #f7fafc;
+            --text: #2d3748;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { margin: 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px;}
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            gap: 20px;
+        }
+        .admin-panel, .standings-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .admin-panel { flex: 1; min-width: 300px; }
+        .standings-panel { flex: 2; min-width: 600px; }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .score-inputs { display: flex; gap: 10px; align-items: center; }
+        .score-inputs input { width: 60px; text-align: center; font-weight: bold;}
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #2c7a7b; }
+        .reset-btn { background-color: #e53e3e; margin-top: 20px; }
+        .reset-btn:hover { background-color: #c53030; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            text-align: center;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th { background-color: #edf2f7; color: var(--primary); font-weight: bold; }
+        td:first-child { text-align: left; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f7fafc; }
+        tr:hover { background-color: #ebf8ff; }
+        
+        /* Highlight top 2 teams for progression */
+        tr:nth-child(1) td, tr:nth-child(2) td { border-left: 4px solid var(--accent); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ShEC Football Tournament</h1>
+        <p>Live Standings & Match Tracking</p>
+    </header>
+
+    <div class="container">
+        <!-- Admin Panel for entering scores -->
+        <div class="admin-panel">
+            <h2>Record a Match</h2>
+            <div class="form-group">
+                <label for="groupSelect">Select Group</label>
+                <select id="groupSelect" onchange="updateTeamDropdowns()">
+                    <option value="A">Group A</option>
+                    <option value="B">Group B</option>
+                    <option value="C">Group C</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Match Teams & Score</label>
+                <div class="score-inputs">
+                    <select id="team1Select"></select>
+                    <input type="number" id="team1Score" min="0" placeholder="0">
+                    <span> - </span>
+                    <input type="number" id="team2Score" min="0" placeholder="0">
+                    <select id="team2Select"></select>
+                </div>
+            </div>
+
+            <button onclick="submitMatch()">Submit Result</button>
+
+            <button class="reset-btn" onclick="resetTournament()">Reset Entire Tournament</button>
+        </div>
+
+        <!-- Standings Tables -->
+        <div class="standings-panel" id="standingsContainer">
+            <!-- Tables injected by JS -->
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Edit your 12 team names here! 
+        const initialTeams = {
+            A: ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta"],
+            B: ["Team Echo", "Team Foxtrot", "Team Golf", "Team Hotel"],
+            C: ["Team India", "Team Juliet", "Team Kilo", "Team Lima"]
+        };
+
+        let tournamentData = {};
+
+        // Initialize or load data from LocalStorage
+        function initData() {
+            const savedData = localStorage.getItem('shecTournamentData');
+            if (savedData) {
+                tournamentData = JSON.parse(savedData);
+            } else {
+                buildInitialData();
+            }
+            updateTeamDropdowns();
+            renderTables();
+        }
+
+        function buildInitialData() {
+            tournamentData = {};
+            for (let group in initialTeams) {
+                tournamentData[group] = initialTeams[group].map(name => ({
+                    name: name,
+                    mp: 0, // Matches Played
+                    w: 0,  // Wins
+                    d: 0,  // Draws
+                    l: 0,  // Losses
+                    gf: 0, // Goals For
+                    ga: 0, // Goals Against
+                    gd: 0, // Goal Difference
+                    pts: 0 // Points
+                }));
+            }
+            saveData();
+        }
+
+        function saveData() {
+            localStorage.setItem('shecTournamentData', JSON.stringify(tournamentData));
+        }
+
+        // Update the dropdowns based on the selected group
+        function updateTeamDropdowns() {
+            const group = document.getElementById('groupSelect').value;
+            const t1Select = document.getElementById('team1Select');
+            const t2Select = document.getElementById('team2Select');
+            
+            t1Select.innerHTML = '';
+            t2Select.innerHTML = '';
+
+            tournamentData[group].forEach(team => {
+                t1Select.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+                t2Select.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+            });
+            
+            // Set default opposite team
+            if(t2Select.options.length > 1) t2Select.selectedIndex = 1;
+        }
+
+        // Process a match result
+        function submitMatch() {
+            const group = document.getElementById('groupSelect').value;
+            const t1Name = document.getElementById('team1Select').value;
+            const t2Name = document.getElementById('team2Select').value;
+            const t1Score = parseInt(document.getElementById('team1Score').value);
+            const t2Score = parseInt(document.getElementById('team2Score').value);
+
+            if (t1Name === t2Name) {
+                alert("A team cannot play against itself!");
+                return;
+            }
+            if (isNaN(t1Score) || isNaN(t2Score)) {
+                alert("Please enter valid scores for both teams.");
+                return;
+            }
+
+            // Find teams in data
+            let team1 = tournamentData[group].find(t => t.name === t1Name);
+            let team2 = tournamentData[group].find(t => t.name === t2Name);
+
+            // Update stats
+            team1.mp += 1; team2.mp += 1;
+            team1.gf += t1Score; team1.ga += t2Score;
+            team2.gf += t2Score; team2.ga += t1Score;
+            
+            team1.gd = team1.gf - team1.ga;
+            team2.gd = team2.gf - team2.ga;
+
+            if (t1Score > t2Score) {
+                team1.w += 1; team1.pts += 3;
+                team2.l += 1;
+            } else if (t1Score < t2Score) {
+                team2.w += 1; team2.pts += 3;
+                team1.l += 1;
+            } else {
+                team1.d += 1; team1.pts += 1;
+                team2.d += 1; team2.pts += 1;
+            }
+
+            saveData();
+            renderTables();
+
+            // Clear inputs
+            document.getElementById('team1Score').value = '';
+            document.getElementById('team2Score').value = '';
+            alert("Match recorded successfully!");
+        }
+
+        // Render the standings tables
+        function renderTables() {
+            const container = document.getElementById('standingsContainer');
+            container.innerHTML = '<h2>Group Standings</h2>';
+
+            for (let group in tournamentData) {
+                // Sort by Points -> Goal Difference -> Goals For
+                let sortedTeams = [...tournamentData[group]].sort((a, b) => {
+                    if (b.pts !== a.pts) return b.pts - a.pts;
+                    if (b.gd !== a.gd) return b.gd - a.gd;
+                    return b.gf - a.gf;
+                });
+
+                let tableHTML = `
+                    <h3>Group ${group}</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Club</th>
+                                <th title="Matches Played">MP</th>
+                                <th title="Wins">W</th>
+                                <th title="Draws">D</th>
+                                <th title="Losses">L</th>
+                                <th title="Goals For">GF</th>
+                                <th title="Goals Against">GA</th>
+                                <th title="Goal Difference">GD</th>
+                                <th title="Points">Pts</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                sortedTeams.forEach(team => {
+                    tableHTML += `
+                        <tr>
+                            <td>${team.name}</td>
+                            <td>${team.mp}</td>
+                            <td>${team.w}</td>
+                            <td>${team.d}</td>
+                            <td>${team.l}</td>
+                            <td>${team.gf}</td>
+                            <td>${team.ga}</td>
+                            <td>${team.gd}</td>
+                            <td><strong>${team.pts}</strong></td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += `</tbody></table>`;
+                container.innerHTML += tableHTML;
+            }
+        }
+
+        function resetTournament() {
+            if(confirm("Are you sure? This will delete all match records and reset scores to 0!")) {
+                buildInitialData();
+                renderTables();
+            }
+        }
+
+        // Run on load
+        window.onload = initData;
+    </script>
+</body>
+</html>
