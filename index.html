@@ -38,29 +38,29 @@
             padding: 0 20px;
             gap: 20px;
             flex: 1;
+            align-items: flex-start;
         }
-        .admin-panel {
+        .admin-panel, .standings-panel {
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .admin-panel {
             flex: 1;
-            min-width: 300px;
+            min-width: 350px;
             display: none; /* Hidden by default for the public */
             border: 2px solid var(--accent);
         }
         .standings-panel {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             flex: 2;
             min-width: 600px;
         }
-        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; margin-top: 0;}
+        h3 { color: var(--secondary); margin-top: 30px; border-bottom: 1px dashed #cbd5e0; padding-bottom: 5px;}
         
         .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--primary);}
         select, input {
             width: 100%;
             padding: 10px;
@@ -71,6 +71,7 @@
         }
         .score-inputs { display: flex; gap: 10px; align-items: center; }
         .score-inputs input { width: 60px; text-align: center; font-weight: bold;}
+        
         button {
             background-color: var(--accent);
             color: white;
@@ -82,11 +83,19 @@
             width: 100%;
             font-weight: bold;
             transition: background 0.3s;
+            margin-bottom: 10px;
         }
         button:hover { background-color: #2c7a7b; }
-        .reset-btn { background-color: #e53e3e; margin-top: 20px; }
+        .reset-btn { background-color: #e53e3e; margin-top: 30px; }
         .reset-btn:hover { background-color: #c53030; }
+        
+        .section-divider {
+            height: 2px;
+            background-color: #e2e8f0;
+            margin: 25px 0;
+        }
 
+        /* Tables */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -101,15 +110,45 @@
         td:first-child { text-align: left; font-weight: bold; }
         tr:nth-child(even) { background-color: #f7fafc; }
         tr:hover { background-color: #ebf8ff; }
-        
-        /* Highlight top 2 teams for progression */
         tr:nth-child(1) td, tr:nth-child(2) td { border-left: 4px solid var(--accent); }
         
+        /* Knockout Styles */
+        .ko-container { 
+            display: flex; 
+            justify-content: center; 
+            gap: 15px;
+            flex-wrap: wrap; 
+            margin-bottom: 20px;
+        }
+        .ko-match { 
+            background: #f7fafc; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 6px; 
+            width: 220px; 
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .ko-team { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 10px 15px; 
+            border-bottom: 1px solid #e2e8f0; 
+            font-weight: bold;
+        }
+        .ko-team:last-child { border-bottom: none; }
+        .ko-score { 
+            background: var(--primary); 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 4px;
+        }
+
         footer {
             text-align: center;
             padding: 20px;
             font-size: 0.8rem;
             color: #718096;
+            margin-top: auto;
         }
         .admin-link {
             color: #a0aec0;
@@ -123,40 +162,68 @@
 
     <header>
         <h1>ShEC Football Tournament</h1>
-        <p>Live Standings & Match Tracking</p>
+        <p>Live Standings & Knockout Brackets</p>
     </header>
 
     <div class="container">
-        <!-- Admin Panel for entering scores (Hidden from public) -->
+        <!-- Admin Panel (Hidden from public) -->
         <div class="admin-panel" id="adminPanel">
             <h2>🏆 Admin Control Panel</h2>
+            
+            <h3>Group Stage Records</h3>
             <div class="form-group">
                 <label for="groupSelect">Select Group</label>
-                <select id="groupSelect" onchange="updateTeamDropdowns()">
+                <select id="groupSelect" onchange="updateGroupDropdowns()">
                     <option value="A">Group A</option>
                     <option value="B">Group B</option>
                     <option value="C">Group C</option>
                 </select>
             </div>
-
             <div class="form-group">
                 <label>Match Teams & Score</label>
                 <div class="score-inputs">
-                    <select id="team1Select"></select>
-                    <input type="number" id="team1Score" min="0" placeholder="0">
+                    <select id="groupTeam1Select"></select>
+                    <input type="number" id="groupTeam1Score" min="0" placeholder="0">
                     <span> - </span>
-                    <input type="number" id="team2Score" min="0" placeholder="0">
-                    <select id="team2Select"></select>
+                    <input type="number" id="groupTeam2Score" min="0" placeholder="0">
+                    <select id="groupTeam2Select"></select>
                 </div>
             </div>
+            <button onclick="submitGroupMatch()">Submit Group Match</button>
 
-            <button onclick="submitMatch()">Submit Result</button>
+            <div class="section-divider"></div>
+
+            <h3>Knockout Stage Records</h3>
+            <div class="form-group">
+                <label for="koStageSelect">Select Stage</label>
+                <select id="koStageSelect" onchange="updateKoMatchDropdown()">
+                    <option value="qf">Quarter-Finals</option>
+                    <option value="sf">Semi-Finals</option>
+                    <option value="final">Final</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="koMatchSelect">Select Match</label>
+                <select id="koMatchSelect"></select>
+            </div>
+            <div class="form-group">
+                <label>Update Teams & Scores</label>
+                <div class="score-inputs">
+                    <select id="koTeam1Select"></select>
+                    <input type="number" id="koTeam1Score" min="0" placeholder="0">
+                    <span> - </span>
+                    <input type="number" id="koTeam2Score" min="0" placeholder="0">
+                    <select id="koTeam2Select"></select>
+                </div>
+            </div>
+            <button onclick="submitKnockoutMatch()" style="background-color: var(--primary);">Update Knockout Board</button>
+
             <button class="reset-btn" onclick="resetTournament()">Reset Entire Tournament</button>
         </div>
 
-        <!-- Standings Tables (Visible to everyone) -->
-        <div class="standings-panel" id="standingsContainer">
-            <h2>Loading Live Standings...</h2>
+        <!-- Live Display Panel -->
+        <div class="standings-panel" id="displayPanel">
+            <h2>Loading Live Data...</h2>
         </div>
     </div>
 
@@ -169,7 +236,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Your Firebase Configuration
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyANKT_uRszC0_MYEA8kCthOISJn80jTcmY",
             authDomain: "shec-football.firebaseapp.com",
@@ -180,10 +247,9 @@
             appId: "1:579853885831:web:88ecd1ab931b95411df322"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const dbRef = ref(db, 'tournament');
+        const dbRef = ref(db, 'tournament2026'); // Updated ref so old data doesn't crash it
 
         const initialTeams = {
             A: ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta"],
@@ -192,111 +258,156 @@
         };
 
         let tournamentData = {};
+        
+        // Generate a flat list of all teams for the Knockout dropdowns
+        let allTeamsList = ["TBD"]; // Default unassigned team
+        for (let group in initialTeams) {
+            allTeamsList.push(...initialTeams[group]);
+        }
 
-        // Listen for live updates from Firebase
+        // Listen for live updates
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
-            if (data) {
+            if (data && data.groups && data.knockout) {
                 tournamentData = data;
             } else {
-                buildInitialData(); // If database is empty, create fresh structure
+                buildInitialData(); 
             }
-            window.updateTeamDropdowns();
-            renderTables();
+            window.updateGroupDropdowns();
+            window.updateKoMatchDropdown();
+            renderEverything();
         });
 
         function buildInitialData() {
-            tournamentData = {};
+            tournamentData = { groups: {}, knockout: {} };
+            
+            // Build Groups
             for (let group in initialTeams) {
-                tournamentData[group] = initialTeams[group].map(name => ({
+                tournamentData.groups[group] = initialTeams[group].map(name => ({
                     name: name, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
                 }));
             }
-            set(dbRef, tournamentData); // Save fresh template to Firebase
+            
+            // Build Knockouts
+            tournamentData.knockout = {
+                qf: Array(4).fill(null).map((_, i) => ({ id: `QF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "" })),
+                sf: Array(2).fill(null).map((_, i) => ({ id: `SF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "" })),
+                final: [{ id: "Final", team1: "TBD", team2: "TBD", score1: "", score2: "" }]
+            };
+
+            set(dbRef, tournamentData); 
         }
 
-        // Attach functions to window so the HTML buttons can use them
-        window.updateTeamDropdowns = function() {
+        // === ADMIN PANEL FUNCTIONS === //
+
+        window.updateGroupDropdowns = function() {
             const group = document.getElementById('groupSelect').value;
-            const t1Select = document.getElementById('team1Select');
-            const t2Select = document.getElementById('team2Select');
+            const t1 = document.getElementById('groupTeam1Select');
+            const t2 = document.getElementById('groupTeam2Select');
             
-            if(!tournamentData[group]) return;
-
-            t1Select.innerHTML = '';
-            t2Select.innerHTML = '';
-
-            tournamentData[group].forEach(team => {
-                t1Select.innerHTML += `<option value="${team.name}">${team.name}</option>`;
-                t2Select.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+            if(!tournamentData.groups || !tournamentData.groups[group]) return;
+            
+            t1.innerHTML = ''; t2.innerHTML = '';
+            tournamentData.groups[group].forEach(team => {
+                t1.innerHTML += `<option value="${team.name}">${team.name}</option>`;
+                t2.innerHTML += `<option value="${team.name}">${team.name}</option>`;
             });
-            
-            if(t2Select.options.length > 1) t2Select.selectedIndex = 1;
+            if(t2.options.length > 1) t2.selectedIndex = 1;
         };
 
-        window.submitMatch = function() {
+        window.updateKoMatchDropdown = function() {
+            const stage = document.getElementById('koStageSelect').value;
+            const matchSelect = document.getElementById('koMatchSelect');
+            const t1 = document.getElementById('koTeam1Select');
+            const t2 = document.getElementById('koTeam2Select');
+            
+            if(!tournamentData.knockout) return;
+
+            // Populate match options based on stage
+            matchSelect.innerHTML = '';
+            tournamentData.knockout[stage].forEach((match, index) => {
+                matchSelect.innerHTML += `<option value="${index}">${match.id}</option>`;
+            });
+
+            // Populate all teams for knockout selection
+            t1.innerHTML = ''; t2.innerHTML = '';
+            allTeamsList.forEach(team => {
+                t1.innerHTML += `<option value="${team}">${team}</option>`;
+                t2.innerHTML += `<option value="${team}">${team}</option>`;
+            });
+        };
+
+        window.submitGroupMatch = function() {
             const group = document.getElementById('groupSelect').value;
-            const t1Name = document.getElementById('team1Select').value;
-            const t2Name = document.getElementById('team2Select').value;
-            const t1Score = parseInt(document.getElementById('team1Score').value);
-            const t2Score = parseInt(document.getElementById('team2Score').value);
+            const t1Name = document.getElementById('groupTeam1Select').value;
+            const t2Name = document.getElementById('groupTeam2Select').value;
+            const t1Score = parseInt(document.getElementById('groupTeam1Score').value);
+            const t2Score = parseInt(document.getElementById('groupTeam2Score').value);
 
-            if (t1Name === t2Name) {
-                alert("A team cannot play against itself!");
-                return;
-            }
-            if (isNaN(t1Score) || isNaN(t2Score)) {
-                alert("Please enter valid scores for both teams.");
-                return;
-            }
+            if (t1Name === t2Name) return alert("A team cannot play against itself!");
+            if (isNaN(t1Score) || isNaN(t2Score)) return alert("Please enter valid scores.");
 
-            let team1 = tournamentData[group].find(t => t.name === t1Name);
-            let team2 = tournamentData[group].find(t => t.name === t2Name);
+            let team1 = tournamentData.groups[group].find(t => t.name === t1Name);
+            let team2 = tournamentData.groups[group].find(t => t.name === t2Name);
 
             team1.mp += 1; team2.mp += 1;
             team1.gf += t1Score; team1.ga += t2Score;
             team2.gf += t2Score; team2.ga += t1Score;
-            
             team1.gd = team1.gf - team1.ga;
             team2.gd = team2.gf - team2.ga;
 
-            if (t1Score > t2Score) {
-                team1.w += 1; team1.pts += 3;
-                team2.l += 1;
-            } else if (t1Score < t2Score) {
-                team2.w += 1; team2.pts += 3;
-                team1.l += 1;
-            } else {
-                team1.d += 1; team1.pts += 1;
-                team2.d += 1; team2.pts += 1;
-            }
+            if (t1Score > t2Score) { team1.w++; team1.pts += 3; team2.l++; } 
+            else if (t1Score < t2Score) { team2.w++; team2.pts += 3; team1.l++; } 
+            else { team1.d++; team1.pts++; team2.d++; team2.pts++; }
 
-            // Sync updated stats to Firebase Cloud!
             set(dbRef, tournamentData).then(() => {
-                document.getElementById('team1Score').value = '';
-                document.getElementById('team2Score').value = '';
-                alert("Match successfully saved to cloud!");
+                document.getElementById('groupTeam1Score').value = '';
+                document.getElementById('groupTeam2Score').value = '';
+                alert("Group match saved!");
+            });
+        };
+
+        window.submitKnockoutMatch = function() {
+            const stage = document.getElementById('koStageSelect').value;
+            const matchIdx = document.getElementById('koMatchSelect').value;
+            const t1Name = document.getElementById('koTeam1Select').value;
+            const t2Name = document.getElementById('koTeam2Select').value;
+            const t1Score = document.getElementById('koTeam1Score').value;
+            const t2Score = document.getElementById('koTeam2Score').value;
+
+            tournamentData.knockout[stage][matchIdx].team1 = t1Name;
+            tournamentData.knockout[stage][matchIdx].team2 = t2Name;
+            tournamentData.knockout[stage][matchIdx].score1 = t1Score;
+            tournamentData.knockout[stage][matchIdx].score2 = t2Score;
+
+            set(dbRef, tournamentData).then(() => {
+                document.getElementById('koTeam1Score').value = '';
+                document.getElementById('koTeam2Score').value = '';
+                alert("Knockout board updated!");
             });
         };
 
         window.resetTournament = function() {
-            if(confirm("Are you sure? This will delete all match records globally!")) {
+            if(confirm("Are you sure? This will delete all group and knockout records!")) {
                 buildInitialData();
             }
         };
 
-        function renderTables() {
-            const container = document.getElementById('standingsContainer');
-            container.innerHTML = '<h2>Group Standings</h2>';
+        // === PUBLIC RENDER FUNCTIONS === //
 
-            for (let group in tournamentData) {
-                let sortedTeams = [...tournamentData[group]].sort((a, b) => {
+        function renderEverything() {
+            const container = document.getElementById('displayPanel');
+            container.innerHTML = '<h2>Group Stage Standings</h2>';
+            
+            // Render Groups
+            for (let group in tournamentData.groups) {
+                let sortedTeams = [...tournamentData.groups[group]].sort((a, b) => {
                     if (b.pts !== a.pts) return b.pts - a.pts;
                     if (b.gd !== a.gd) return b.gd - a.gd;
                     return b.gf - a.gf;
                 });
 
-                let tableHTML = `
+                let html = `
                     <h3>Group ${group}</h3>
                     <table>
                         <thead>
@@ -314,33 +425,52 @@
                         </thead>
                         <tbody>
                 `;
-
                 sortedTeams.forEach(team => {
-                    tableHTML += `
-                        <tr>
-                            <td>${team.name}</td>
-                            <td>${team.mp}</td>
-                            <td>${team.w}</td>
-                            <td>${team.d}</td>
-                            <td>${team.l}</td>
-                            <td>${team.gf}</td>
-                            <td>${team.ga}</td>
-                            <td>${team.gd}</td>
-                            <td><strong>${team.pts}</strong></td>
-                        </tr>
+                    html += `<tr>
+                        <td>${team.name}</td><td>${team.mp}</td><td>${team.w}</td>
+                        <td>${team.d}</td><td>${team.l}</td><td>${team.gf}</td>
+                        <td>${team.ga}</td><td>${team.gd}</td><td><strong>${team.pts}</strong></td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+                container.innerHTML += html;
+            }
+
+            // Render Knockouts
+            container.innerHTML += `<div class="section-divider"></div><h2>Knockout Stage</h2>`;
+            
+            const stages = [
+                { key: 'qf', title: 'Quarter-Finals' },
+                { key: 'sf', title: 'Semi-Finals' },
+                { key: 'final', title: 'Final' }
+            ];
+
+            stages.forEach(stage => {
+                let stageHTML = `<h3>${stage.title}</h3><div class="ko-container">`;
+                
+                tournamentData.knockout[stage.key].forEach(match => {
+                    let s1 = match.score1 !== "" ? match.score1 : "-";
+                    let s2 = match.score2 !== "" ? match.score2 : "-";
+                    
+                    stageHTML += `
+                        <div class="ko-match">
+                            <div class="ko-team"><span>${match.team1}</span> <span class="ko-score">${s1}</span></div>
+                            <div class="ko-team"><span>${match.team2}</span> <span class="ko-score">${s2}</span></div>
+                        </div>
                     `;
                 });
-
-                tableHTML += `</tbody></table>`;
-                container.innerHTML += tableHTML;
-            }
+                stageHTML += `</div>`;
+                container.innerHTML += stageHTML;
+            });
         }
 
-        // Simple Admin PIN Protection
+        // Admin PIN
         window.promptAdmin = function() {
             const pin = prompt("Enter Admin PIN:");
             if(pin === "2026") {
                 document.getElementById('adminPanel').style.display = 'block';
+                // Scroll to top when unlocked
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
                 alert("Incorrect PIN.");
             }
