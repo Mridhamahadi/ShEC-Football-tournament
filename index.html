@@ -39,14 +39,24 @@
             gap: 20px;
             flex: 1;
         }
-        .admin-panel, .standings-panel {
+        .admin-panel {
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+            display: none; /* Hidden by default for the public */
+            border: 2px solid var(--accent);
         }
-        .admin-panel { flex: 1; min-width: 300px; }
-        .standings-panel { flex: 2; min-width: 600px; }
+        .standings-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 2;
+            min-width: 600px;
+        }
         h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; }
         
         .form-group { margin-bottom: 15px; }
@@ -94,20 +104,19 @@
         
         /* Highlight top 2 teams for progression */
         tr:nth-child(1) td, tr:nth-child(2) td { border-left: 4px solid var(--accent); }
-
-        /* Hiding mechanism */
-        .hidden { display: none !important; }
         
         footer {
             text-align: center;
             padding: 20px;
-            color: #a0aec0;
             font-size: 0.8rem;
+            color: #718096;
         }
         .admin-link {
+            color: #a0aec0;
+            text-decoration: none;
             cursor: pointer;
-            text-decoration: underline;
         }
+        .admin-link:hover { color: var(--primary); }
     </style>
 </head>
 <body>
@@ -118,9 +127,9 @@
     </header>
 
     <div class="container">
-        <!-- Admin Panel (Hidden by default) -->
-        <div class="admin-panel hidden" id="adminPanel">
-            <h2>Record a Match</h2>
+        <!-- Admin Panel for entering scores (Hidden from public) -->
+        <div class="admin-panel" id="adminPanel">
+            <h2>🏆 Admin Control Panel</h2>
             <div class="form-group">
                 <label for="groupSelect">Select Group</label>
                 <select id="groupSelect" onchange="updateTeamDropdowns()">
@@ -143,12 +152,11 @@
 
             <button onclick="submitMatch()">Submit Result</button>
             <button class="reset-btn" onclick="resetTournament()">Reset Entire Tournament</button>
-            <button style="margin-top: 10px; background-color: #718096;" onclick="hideAdmin()">Close Admin Panel</button>
         </div>
 
-        <!-- Standings Tables (Always visible) -->
+        <!-- Standings Tables (Visible to everyone) -->
         <div class="standings-panel" id="standingsContainer">
-            <!-- Tables injected by JS -->
+            <h2>Loading Live Standings...</h2>
         </div>
     </div>
 
@@ -156,65 +164,65 @@
         <span class="admin-link" onclick="promptAdmin()">Admin Login</span>
     </footer>
 
-    <script>
-        // --- CONFIGURATION ---
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Your Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyANKT_uRszC0_MYEA8kCthOISJn80jTcmY",
+            authDomain: "shec-football.firebaseapp.com",
+            databaseURL: "https://shec-football-default-rtdb.firebaseio.com",
+            projectId: "shec-football",
+            storageBucket: "shec-football.firebasestorage.app",
+            messagingSenderId: "579853885831",
+            appId: "1:579853885831:web:88ecd1ab931b95411df322"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, 'tournament');
+
         const initialTeams = {
             A: ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta"],
             B: ["Team Echo", "Team Foxtrot", "Team Golf", "Team Hotel"],
             C: ["Team India", "Team Juliet", "Team Kilo", "Team Lima"]
         };
 
-        const ADMIN_PASSWORD = "ADMIN"; // Change your password here
-
         let tournamentData = {};
 
-        // Authentication logic
-        function promptAdmin() {
-            const pass = prompt("Enter Admin Password:");
-            if (pass === ADMIN_PASSWORD) {
-                document.getElementById('adminPanel').classList.remove('hidden');
-                alert("Admin access granted.");
-            } else if (pass !== null) {
-                alert("Incorrect password.");
-            }
-        }
-
-        function hideAdmin() {
-            document.getElementById('adminPanel').classList.add('hidden');
-        }
-
-        // Initialize or load data from LocalStorage
-        function initData() {
-            const savedData = localStorage.getItem('shecTournamentData');
-            if (savedData) {
-                tournamentData = JSON.parse(savedData);
+        // Listen for live updates from Firebase
+        onValue(dbRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                tournamentData = data;
             } else {
-                buildInitialData();
+                buildInitialData(); // If database is empty, create fresh structure
             }
-            updateTeamDropdowns();
+            window.updateTeamDropdowns();
             renderTables();
-        }
+        });
 
         function buildInitialData() {
             tournamentData = {};
             for (let group in initialTeams) {
                 tournamentData[group] = initialTeams[group].map(name => ({
-                    name: name,
-                    mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
+                    name: name, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
                 }));
             }
-            saveData();
+            set(dbRef, tournamentData); // Save fresh template to Firebase
         }
 
-        function saveData() {
-            localStorage.setItem('shecTournamentData', JSON.stringify(tournamentData));
-        }
-
-        function updateTeamDropdowns() {
+        // Attach functions to window so the HTML buttons can use them
+        window.updateTeamDropdowns = function() {
             const group = document.getElementById('groupSelect').value;
             const t1Select = document.getElementById('team1Select');
             const t2Select = document.getElementById('team2Select');
             
+            if(!tournamentData[group]) return;
+
             t1Select.innerHTML = '';
             t2Select.innerHTML = '';
 
@@ -224,9 +232,9 @@
             });
             
             if(t2Select.options.length > 1) t2Select.selectedIndex = 1;
-        }
+        };
 
-        function submitMatch() {
+        window.submitMatch = function() {
             const group = document.getElementById('groupSelect').value;
             const t1Name = document.getElementById('team1Select').value;
             const t2Name = document.getElementById('team2Select').value;
@@ -238,7 +246,7 @@
                 return;
             }
             if (isNaN(t1Score) || isNaN(t2Score)) {
-                alert("Please enter valid scores.");
+                alert("Please enter valid scores for both teams.");
                 return;
             }
 
@@ -263,13 +271,19 @@
                 team2.d += 1; team2.pts += 1;
             }
 
-            saveData();
-            renderTables();
+            // Sync updated stats to Firebase Cloud!
+            set(dbRef, tournamentData).then(() => {
+                document.getElementById('team1Score').value = '';
+                document.getElementById('team2Score').value = '';
+                alert("Match successfully saved to cloud!");
+            });
+        };
 
-            document.getElementById('team1Score').value = '';
-            document.getElementById('team2Score').value = '';
-            alert("Match recorded successfully!");
-        }
+        window.resetTournament = function() {
+            if(confirm("Are you sure? This will delete all match records globally!")) {
+                buildInitialData();
+            }
+        };
 
         function renderTables() {
             const container = document.getElementById('standingsContainer');
@@ -288,8 +302,14 @@
                         <thead>
                             <tr>
                                 <th>Club</th>
-                                <th>MP</th><th>W</th><th>D</th><th>L</th>
-                                <th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+                                <th title="Matches Played">MP</th>
+                                <th title="Wins">W</th>
+                                <th title="Draws">D</th>
+                                <th title="Losses">L</th>
+                                <th title="Goals For">GF</th>
+                                <th title="Goals Against">GA</th>
+                                <th title="Goal Difference">GD</th>
+                                <th title="Points">Pts</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -299,9 +319,14 @@
                     tableHTML += `
                         <tr>
                             <td>${team.name}</td>
-                            <td>${team.mp}</td><td>${team.w}</td><td>${team.d}</td>
-                            <td>${team.l}</td><td>${team.gf}</td><td>${team.ga}</td>
-                            <td>${team.gd}</td><td><strong>${team.pts}</strong></td>
+                            <td>${team.mp}</td>
+                            <td>${team.w}</td>
+                            <td>${team.d}</td>
+                            <td>${team.l}</td>
+                            <td>${team.gf}</td>
+                            <td>${team.ga}</td>
+                            <td>${team.gd}</td>
+                            <td><strong>${team.pts}</strong></td>
                         </tr>
                     `;
                 });
@@ -311,14 +336,15 @@
             }
         }
 
-        function resetTournament() {
-            if(confirm("Are you sure? This will delete all match records!")) {
-                buildInitialData();
-                renderTables();
+        // Simple Admin PIN Protection
+        window.promptAdmin = function() {
+            const pin = prompt("Enter Admin PIN:");
+            if(pin === "2026") {
+                document.getElementById('adminPanel').style.display = 'block';
+            } else {
+                alert("Incorrect PIN.");
             }
-        }
-
-        window.onload = initData;
+        };
     </script>
 </body>
 </html>
