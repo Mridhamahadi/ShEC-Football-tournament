@@ -18,6 +18,9 @@
             color: var(--text);
             margin: 0;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         header {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -34,6 +37,7 @@
             margin: 20px auto;
             padding: 0 20px;
             gap: 20px;
+            flex: 1;
         }
         .admin-panel, .standings-panel {
             background: white;
@@ -90,6 +94,20 @@
         
         /* Highlight top 2 teams for progression */
         tr:nth-child(1) td, tr:nth-child(2) td { border-left: 4px solid var(--accent); }
+
+        /* Hiding mechanism */
+        .hidden { display: none !important; }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #a0aec0;
+            font-size: 0.8rem;
+        }
+        .admin-link {
+            cursor: pointer;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -100,8 +118,8 @@
     </header>
 
     <div class="container">
-        <!-- Admin Panel for entering scores -->
-        <div class="admin-panel">
+        <!-- Admin Panel (Hidden by default) -->
+        <div class="admin-panel hidden" id="adminPanel">
             <h2>Record a Match</h2>
             <div class="form-group">
                 <label for="groupSelect">Select Group</label>
@@ -124,26 +142,46 @@
             </div>
 
             <button onclick="submitMatch()">Submit Result</button>
-
             <button class="reset-btn" onclick="resetTournament()">Reset Entire Tournament</button>
+            <button style="margin-top: 10px; background-color: #718096;" onclick="hideAdmin()">Close Admin Panel</button>
         </div>
 
-        <!-- Standings Tables -->
+        <!-- Standings Tables (Always visible) -->
         <div class="standings-panel" id="standingsContainer">
             <!-- Tables injected by JS -->
         </div>
     </div>
 
+    <footer>
+        <span class="admin-link" onclick="promptAdmin()">Admin Login</span>
+    </footer>
+
     <script>
         // --- CONFIGURATION ---
-        // Edit your 12 team names here! 
         const initialTeams = {
             A: ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta"],
             B: ["Team Echo", "Team Foxtrot", "Team Golf", "Team Hotel"],
             C: ["Team India", "Team Juliet", "Team Kilo", "Team Lima"]
         };
 
+        const ADMIN_PASSWORD = "admin"; // Change your password here
+
         let tournamentData = {};
+
+        // Authentication logic
+        function promptAdmin() {
+            const pass = prompt("Enter Admin Password:");
+            if (pass === ADMIN_PASSWORD) {
+                document.getElementById('adminPanel').classList.remove('hidden');
+                alert("Admin access granted.");
+            } else if (pass !== null) {
+                alert("Incorrect password.");
+            }
+        }
+
+        function hideAdmin() {
+            document.getElementById('adminPanel').classList.add('hidden');
+        }
 
         // Initialize or load data from LocalStorage
         function initData() {
@@ -162,14 +200,7 @@
             for (let group in initialTeams) {
                 tournamentData[group] = initialTeams[group].map(name => ({
                     name: name,
-                    mp: 0, // Matches Played
-                    w: 0,  // Wins
-                    d: 0,  // Draws
-                    l: 0,  // Losses
-                    gf: 0, // Goals For
-                    ga: 0, // Goals Against
-                    gd: 0, // Goal Difference
-                    pts: 0 // Points
+                    mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
                 }));
             }
             saveData();
@@ -179,7 +210,6 @@
             localStorage.setItem('shecTournamentData', JSON.stringify(tournamentData));
         }
 
-        // Update the dropdowns based on the selected group
         function updateTeamDropdowns() {
             const group = document.getElementById('groupSelect').value;
             const t1Select = document.getElementById('team1Select');
@@ -193,11 +223,9 @@
                 t2Select.innerHTML += `<option value="${team.name}">${team.name}</option>`;
             });
             
-            // Set default opposite team
             if(t2Select.options.length > 1) t2Select.selectedIndex = 1;
         }
 
-        // Process a match result
         function submitMatch() {
             const group = document.getElementById('groupSelect').value;
             const t1Name = document.getElementById('team1Select').value;
@@ -210,15 +238,13 @@
                 return;
             }
             if (isNaN(t1Score) || isNaN(t2Score)) {
-                alert("Please enter valid scores for both teams.");
+                alert("Please enter valid scores.");
                 return;
             }
 
-            // Find teams in data
             let team1 = tournamentData[group].find(t => t.name === t1Name);
             let team2 = tournamentData[group].find(t => t.name === t2Name);
 
-            // Update stats
             team1.mp += 1; team2.mp += 1;
             team1.gf += t1Score; team1.ga += t2Score;
             team2.gf += t2Score; team2.ga += t1Score;
@@ -240,19 +266,16 @@
             saveData();
             renderTables();
 
-            // Clear inputs
             document.getElementById('team1Score').value = '';
             document.getElementById('team2Score').value = '';
             alert("Match recorded successfully!");
         }
 
-        // Render the standings tables
         function renderTables() {
             const container = document.getElementById('standingsContainer');
             container.innerHTML = '<h2>Group Standings</h2>';
 
             for (let group in tournamentData) {
-                // Sort by Points -> Goal Difference -> Goals For
                 let sortedTeams = [...tournamentData[group]].sort((a, b) => {
                     if (b.pts !== a.pts) return b.pts - a.pts;
                     if (b.gd !== a.gd) return b.gd - a.gd;
@@ -265,14 +288,8 @@
                         <thead>
                             <tr>
                                 <th>Club</th>
-                                <th title="Matches Played">MP</th>
-                                <th title="Wins">W</th>
-                                <th title="Draws">D</th>
-                                <th title="Losses">L</th>
-                                <th title="Goals For">GF</th>
-                                <th title="Goals Against">GA</th>
-                                <th title="Goal Difference">GD</th>
-                                <th title="Points">Pts</th>
+                                <th>MP</th><th>W</th><th>D</th><th>L</th>
+                                <th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -282,14 +299,9 @@
                     tableHTML += `
                         <tr>
                             <td>${team.name}</td>
-                            <td>${team.mp}</td>
-                            <td>${team.w}</td>
-                            <td>${team.d}</td>
-                            <td>${team.l}</td>
-                            <td>${team.gf}</td>
-                            <td>${team.ga}</td>
-                            <td>${team.gd}</td>
-                            <td><strong>${team.pts}</strong></td>
+                            <td>${team.mp}</td><td>${team.w}</td><td>${team.d}</td>
+                            <td>${team.l}</td><td>${team.gf}</td><td>${team.ga}</td>
+                            <td>${team.gd}</td><td><strong>${team.pts}</strong></td>
                         </tr>
                     `;
                 });
@@ -300,13 +312,12 @@
         }
 
         function resetTournament() {
-            if(confirm("Are you sure? This will delete all match records and reset scores to 0!")) {
+            if(confirm("Are you sure? This will delete all match records!")) {
                 buildInitialData();
                 renderTables();
             }
         }
 
-        // Run on load
         window.onload = initData;
     </script>
 </body>
