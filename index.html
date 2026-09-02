@@ -10,7 +10,7 @@
             --secondary: #2b6cb0;
             --accent: #38b2ac;
             --bg: #f7fafc;
-            --text: #2d3748;ssala
+            --text: #2d3748;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -45,16 +45,18 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            width: 100%;
         }
         .admin-panel {
             flex: 1;
-            min-width: 350px;
+            min-width: 300px;
             display: none;
             border: 2px solid var(--accent);
         }
         .standings-panel {
             flex: 2;
-            min-width: 600px;
+            min-width: 300px;
         }
         h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px; margin-top: 0;}
         h3 { color: var(--secondary); margin-top: 30px; border-bottom: 1px dashed #cbd5e0; padding-bottom: 5px;}
@@ -95,10 +97,16 @@
             margin: 25px 0;
         }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 30px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            min-width: 600px;
         }
         th, td {
             text-align: center;
@@ -130,6 +138,16 @@
         footer { text-align: center; padding: 20px; font-size: 0.8rem; color: #718096; margin-top: auto;}
         .admin-link { color: #a0aec0; text-decoration: none; cursor: pointer;}
         .admin-link:hover { color: var(--primary); }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .container { padding: 10px; margin: 10px auto; }
+            .admin-panel, .standings-panel { padding: 15px; }
+            .score-inputs { flex-wrap: wrap; justify-content: center; }
+            .score-inputs select { width: 100%; margin-bottom: 5px; }
+            .score-inputs input { width: 40%; }
+        }
     </style>
 </head>
 <body>
@@ -221,7 +239,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        // Changed the ref name to v3 so it creates a clean new database for 4 groups
         const dbRef = ref(db, 'tournament2026_v3'); 
 
         // --- EDIT YOUR TEAMS AND LOGOS HERE ---
@@ -390,6 +407,7 @@
 
                 let html = `
                     <h3>Group ${group}</h3>
+                    <div class="table-responsive">
                     <table>
                         <thead>
                             <tr>
@@ -414,7 +432,7 @@
                         <td>${team.ga}</td><td>${team.gd}</td><td><strong>${team.pts}</strong></td>
                     </tr>`;
                 });
-                html += `</tbody></table>`;
+                html += `</tbody></table></div>`;
                 container.innerHTML += html;
             }
 
