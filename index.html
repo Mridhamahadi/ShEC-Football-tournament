@@ -28,8 +28,29 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
         }
         h1 { margin: 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px;}
+        
+        .nav-btn {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            background-color: var(--accent);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        .nav-btn:hover {
+            background-color: white;
+            color: var(--accent);
+        }
+
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -39,6 +60,8 @@
             gap: 20px;
             flex: 1;
             align-items: flex-start;
+            width: 100%;
+            box-sizing: border-box;
         }
         .admin-panel, .standings-panel {
             background: white;
@@ -88,6 +111,8 @@
             margin-bottom: 10px;
         }
         button:hover { background-color: #2c7a7b; }
+        .auto-btn { background-color: #d69e2e; }
+        .auto-btn:hover { background-color: #b7791f; }
         .reset-btn { background-color: #e53e3e; margin-top: 30px; }
         .reset-btn:hover { background-color: #c53030; }
         
@@ -129,11 +154,56 @@
             background-color: white;
         }
 
-        .ko-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;}
-        .ko-match { background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 6px; width: 220px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);}
-        .ko-team { display: flex; justify-content: space-between; padding: 10px 15px; border-bottom: 1px solid #e2e8f0; font-weight: bold;}
-        .ko-team:last-child { border-bottom: none; }
-        .ko-score { background: var(--primary); color: white; padding: 2px 8px; border-radius: 4px;}
+        /* Bracket View Styles */
+        .bracket-wrapper {
+            display: flex;
+            justify-content: space-between;
+            overflow-x: auto;
+            padding: 20px 0;
+            gap: 30px;
+            min-height: 400px;
+        }
+        .bracket-round {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            gap: 20px;
+            flex: 1;
+            min-width: 220px;
+        }
+        .bracket-round h4 {
+            text-align: center;
+            color: var(--primary);
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 5px;
+        }
+        .bracket-match {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            overflow: hidden;
+            position: relative;
+        }
+        .bracket-team {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: bold;
+            align-items: center;
+        }
+        .bracket-team:last-child { border-bottom: none; }
+        .bracket-score {
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            min-width: 15px;
+            text-align: center;
+        }
 
         footer { text-align: center; padding: 20px; font-size: 0.8rem; color: #718096; margin-top: auto;}
         .admin-link { color: #a0aec0; text-decoration: none; cursor: pointer;}
@@ -142,6 +212,13 @@
         /* Mobile Adjustments */
         @media (max-width: 768px) {
             h1 { font-size: 1.8rem; }
+            header { padding-bottom: 60px; }
+            .nav-btn {
+                top: auto;
+                bottom: 15px;
+                right: 50%;
+                transform: translateX(50%);
+            }
             .container { padding: 10px; margin: 10px auto; }
             .admin-panel, .standings-panel { padding: 15px; }
             .score-inputs { flex-wrap: wrap; justify-content: center; }
@@ -155,6 +232,7 @@
     <header>
         <h1>ShEC Football Tournament</h1>
         <p>Live Standings & Knockout Brackets</p>
+        <button class="nav-btn" id="toggleViewBtn" onclick="toggleView()">View Bracket</button>
     </header>
 
     <div class="container">
@@ -187,6 +265,9 @@
             <div class="section-divider"></div>
 
             <h3>Knockout Stage Records</h3>
+            <button class="auto-btn" onclick="autoFillQF()">⚡ Auto-Fill QF from Standings</button>
+            <br><br>
+
             <div class="form-group">
                 <label for="koStageSelect">Select Stage</label>
                 <select id="koStageSelect" onchange="updateKoMatchDropdown()">
@@ -215,7 +296,16 @@
         </div>
 
         <div class="standings-panel" id="displayPanel">
-            <h2>Loading Live Data...</h2>
+            <!-- Group Stage Container -->
+            <div id="groupsContainer">
+                <h2>Loading Live Data...</h2>
+            </div>
+            
+            <!-- Knockout Bracket Container -->
+            <div id="bracketContainer" style="display: none;">
+                <h2>Tournament Bracket</h2>
+                <div id="bracketVisual" class="bracket-wrapper"></div>
+            </div>
         </div>
     </div>
 
@@ -241,7 +331,6 @@
         const db = getDatabase(app);
         const dbRef = ref(db, 'tournament2026_v3'); 
 
-        // --- EDIT YOUR TEAMS AND LOGOS HERE ---
         const initialTeams = {
             A: [
                 {name: "DURBAR14", logo: "Durbar14.png"},
@@ -264,14 +353,32 @@
                 {name: "CAPACITOR", logo: "Capacitor.png"}
             ]
         };
-        // ----------------------------------------
 
         let tournamentData = {};
-        
         let allTeamsList = ["TBD"];
         for (let group in initialTeams) {
             initialTeams[group].forEach(t => allTeamsList.push(t.name));
         }
+
+        window.currentView = 'standings';
+
+        window.toggleView = function() {
+            const btn = document.getElementById('toggleViewBtn');
+            const groupsView = document.getElementById('groupsContainer');
+            const bracketView = document.getElementById('bracketContainer');
+
+            if (window.currentView === 'standings') {
+                window.currentView = 'bracket';
+                btn.innerText = 'View Standings';
+                groupsView.style.display = 'none';
+                bracketView.style.display = 'block';
+            } else {
+                window.currentView = 'standings';
+                btn.innerText = 'View Bracket';
+                groupsView.style.display = 'block';
+                bracketView.style.display = 'none';
+            }
+        };
 
         onValue(dbRef, (snapshot) => {
             const data = snapshot.val();
@@ -364,7 +471,6 @@
             set(dbRef, tournamentData).then(() => {
                 document.getElementById('groupTeam1Score').value = '';
                 document.getElementById('groupTeam2Score').value = '';
-                alert("Group match saved!");
             });
         };
 
@@ -381,12 +487,33 @@
             tournamentData.knockout[stage][matchIdx].score1 = t1Score;
             tournamentData.knockout[stage][matchIdx].score2 = t2Score;
 
-            set(dbRef, tournamentData).then(() => {
-                document.getElementById('koTeam1Score').value = '';
-                document.getElementById('koTeam2Score').value = '';
-                alert("Knockout board updated!");
-            });
+            set(dbRef, tournamentData);
         };
+
+        window.autoFillQF = function() {
+            let ranks = {};
+            for (let g in tournamentData.groups) {
+                 ranks[g] = [...tournamentData.groups[g]].sort((a,b) => (b.pts !== a.pts ? b.pts - a.pts : (b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf)));
+            }
+            
+            // Standard crossing algorithm: 1A vs 2B, 1C vs 2D, 1B vs 2A, 1D vs 2C
+            tournamentData.knockout.qf[0].team1 = ranks['A'][0].name;
+            tournamentData.knockout.qf[0].team2 = ranks['B'][1].name;
+            
+            tournamentData.knockout.qf[1].team1 = ranks['C'][0].name;
+            tournamentData.knockout.qf[1].team2 = ranks['D'][1].name;
+
+            tournamentData.knockout.qf[2].team1 = ranks['B'][0].name;
+            tournamentData.knockout.qf[2].team2 = ranks['A'][1].name;
+
+            tournamentData.knockout.qf[3].team1 = ranks['D'][0].name;
+            tournamentData.knockout.qf[3].team2 = ranks['C'][1].name;
+
+            set(dbRef, tournamentData).then(() => {
+                alert("Quarter-Finals automatically populated from group standings!");
+                window.updateKoMatchDropdown();
+            });
+        }
 
         window.resetTournament = function() {
             if(confirm("Are you sure? This will delete all group and knockout records!")) {
@@ -395,9 +522,11 @@
         };
 
         function renderEverything() {
-            const container = document.getElementById('displayPanel');
-            container.innerHTML = '<h2>Group Stage Standings</h2>';
+            const groupsContainer = document.getElementById('groupsContainer');
+            const bracketVisual = document.getElementById('bracketVisual');
             
+            // 1. RENDER GROUP STAGE
+            groupsContainer.innerHTML = '<h2>Group Stage Standings</h2>';
             for (let group in tournamentData.groups) {
                 let sortedTeams = [...tournamentData.groups[group]].sort((a, b) => {
                     if (b.pts !== a.pts) return b.pts - a.pts;
@@ -411,7 +540,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>teams</th>
+                                <th>Teams</th>
                                 <th title="Matches Played">MP</th>
                                 <th title="Wins">W</th>
                                 <th title="Draws">D</th>
@@ -426,41 +555,46 @@
                 `;
                 sortedTeams.forEach(team => {
                     html += `<tr>
-                        <td><img src="${team.logo}" class="team-logo" alt="${team.name} Logo"> ${team.name}</td>
+                        <td><img src="${team.logo}" class="team-logo" alt="${team.name} Logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiNjYmQ1ZTAiLz48L3N2Zz4='"> ${team.name}</td>
                         <td>${team.mp}</td><td>${team.w}</td>
                         <td>${team.d}</td><td>${team.l}</td><td>${team.gf}</td>
                         <td>${team.ga}</td><td>${team.gd}</td><td><strong>${team.pts}</strong></td>
                     </tr>`;
                 });
                 html += `</tbody></table></div>`;
-                container.innerHTML += html;
+                groupsContainer.innerHTML += html;
             }
 
-            container.innerHTML += `<div class="section-divider"></div><h2>Knockout Stage</h2>`;
-            
-            const stages = [
-                { key: 'qf', title: 'Quarter-Finals' },
-                { key: 'sf', title: 'Semi-Finals' },
-                { key: 'final', title: 'Final' }
-            ];
+            // 2. RENDER KNOCKOUT BRACKET
+            const generateMatchHTML = (match) => {
+                let s1 = match.score1 !== "" ? match.score1 : "-";
+                let s2 = match.score2 !== "" ? match.score2 : "-";
+                return `
+                    <div class="bracket-match">
+                        <div class="bracket-team"><span>${match.team1}</span> <span class="bracket-score">${s1}</span></div>
+                        <div class="bracket-team"><span>${match.team2}</span> <span class="bracket-score">${s2}</span></div>
+                    </div>
+                `;
+            };
 
-            stages.forEach(stage => {
-                let stageHTML = `<h3>${stage.title}</h3><div class="ko-container">`;
-                
-                tournamentData.knockout[stage.key].forEach(match => {
-                    let s1 = match.score1 !== "" ? match.score1 : "-";
-                    let s2 = match.score2 !== "" ? match.score2 : "-";
-                    
-                    stageHTML += `
-                        <div class="ko-match">
-                            <div class="ko-team"><span>${match.team1}</span> <span class="ko-score">${s1}</span></div>
-                            <div class="ko-team"><span>${match.team2}</span> <span class="ko-score">${s2}</span></div>
-                        </div>
-                    `;
-                });
-                stageHTML += `</div>`;
-                container.innerHTML += stageHTML;
-            });
+            let bracketHTML = '';
+            
+            // QF
+            bracketHTML += `<div class="bracket-round"><h4>Quarter-Finals</h4>`;
+            tournamentData.knockout.qf.forEach(match => { bracketHTML += generateMatchHTML(match); });
+            bracketHTML += `</div>`;
+
+            // SF
+            bracketHTML += `<div class="bracket-round"><h4>Semi-Finals</h4>`;
+            tournamentData.knockout.sf.forEach(match => { bracketHTML += generateMatchHTML(match); });
+            bracketHTML += `</div>`;
+
+            // Final
+            bracketHTML += `<div class="bracket-round"><h4>Final</h4>`;
+            tournamentData.knockout.final.forEach(match => { bracketHTML += generateMatchHTML(match); });
+            bracketHTML += `</div>`;
+
+            bracketVisual.innerHTML = bracketHTML;
         }
 
         window.promptAdmin = function() {
