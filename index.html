@@ -45,7 +45,7 @@
             font-weight: bold;
             font-size: 0.9rem;
             transition: 0.3s;
-            width: auto; /* Fixes the stretching issue */
+            width: auto;
             margin: 0;
         }
         .nav-btn:hover {
@@ -75,7 +75,7 @@
         }
         .admin-panel {
             flex: 1;
-            min-width: 300px;
+            min-width: 320px;
             display: none;
             border: 2px solid var(--accent);
         }
@@ -96,9 +96,59 @@
             box-sizing: border-box;
             font-size: 1rem;
         }
-        .score-inputs { display: flex; gap: 10px; align-items: center; }
-        .score-inputs input { width: 60px; text-align: center; font-weight: bold;}
+        .score-inputs { display: flex; gap: 8px; align-items: center; }
+        .score-inputs input { width: 70px; text-align: center; font-weight: bold; padding: 10px 5px;}
+        .help-text { display: block; margin-top: 5px; font-size: 0.8rem; color: #718096; }
         
+        /* 3-2-1 Penalty Panel Styles */
+        .penalty-panel {
+            background: #edf2f7;
+            padding: 15px 10px;
+            border-radius: 6px;
+            border: 1px dashed #a0aec0;
+            margin-top: 8px;
+        }
+        .pen-header {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 0.75rem;
+            color: #718096;
+            text-align: center;
+            font-weight: bold;
+        }
+        .pen-header span { width: 60px; }
+        .pen-header .pen-label-header {
+            width: 80px;
+            text-align: right;
+            padding-right: 10px;
+        }
+        .pen-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .pen-row input {
+            width: 60px;
+            padding: 8px 5px;
+            text-align: center;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .pen-label {
+            width: 80px;
+            text-align: right;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 10px;
+        }
+
         button {
             background-color: var(--accent);
             color: white;
@@ -133,7 +183,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 600px;
+            min-width: 650px;
         }
         th, td {
             text-align: center;
@@ -206,6 +256,12 @@
             min-width: 15px;
             text-align: center;
         }
+        .pen-score {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            margin-left: 5px;
+            font-weight: bold;
+        }
 
         footer { text-align: center; padding: 20px; font-size: 0.8rem; color: #718096; margin-top: auto;}
         .admin-link { color: #a0aec0; text-decoration: none; cursor: pointer;}
@@ -225,7 +281,11 @@
             .admin-panel, .standings-panel { padding: 15px; }
             .score-inputs { flex-wrap: wrap; justify-content: center; }
             .score-inputs select { width: 100%; margin-bottom: 5px; }
-            .score-inputs input { width: 40%; }
+            .score-inputs input { width: 45%; }
+            
+            /* Penalty Mobile Scaling */
+            .pen-header span, .pen-row input { width: 50px; }
+            .pen-label, .pen-header .pen-label-header { width: 60px; font-size: 0.75rem; }
         }
     </style>
 </head>
@@ -253,12 +313,15 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Match Teams & Score</label>
+                <label>Match Teams, Goals & Fouls</label>
+                <span class="help-text">Tie-breaker format: Points > GD > GF > Fewest Fouls</span>
                 <div class="score-inputs">
                     <select id="groupTeam1Select"></select>
-                    <input type="number" id="groupTeam1Score" min="0" placeholder="0">
+                    <input type="number" id="groupTeam1Score" min="0" placeholder="Goals">
+                    <input type="number" id="groupTeam1Fouls" min="0" placeholder="Fouls">
                     <span> - </span>
-                    <input type="number" id="groupTeam2Score" min="0" placeholder="0">
+                    <input type="number" id="groupTeam2Fouls" min="0" placeholder="Fouls">
+                    <input type="number" id="groupTeam2Score" min="0" placeholder="Goals">
                     <select id="groupTeam2Select"></select>
                 </div>
             </div>
@@ -280,30 +343,55 @@
             </div>
             <div class="form-group">
                 <label for="koMatchSelect">Select Match</label>
-                <select id="koMatchSelect"></select>
+                <select id="koMatchSelect" onchange="updateKoMatchFields()"></select>
             </div>
             <div class="form-group">
-                <label>Update Teams & Scores</label>
+                <label>Update Teams & Match Goals</label>
                 <div class="score-inputs">
-                    <select id="koTeam1Select"></select>
-                    <input type="number" id="koTeam1Score" min="0" placeholder="0">
+                    <select id="koTeam1Select" onchange="syncPenLabels()"></select>
+                    <input type="number" id="koTeam1Score" min="0" placeholder="Goals">
                     <span> - </span>
-                    <input type="number" id="koTeam2Score" min="0" placeholder="0">
-                    <select id="koTeam2Select"></select>
+                    <input type="number" id="koTeam2Score" min="0" placeholder="Goals">
+                    <select id="koTeam2Select" onchange="syncPenLabels()"></select>
                 </div>
             </div>
+
+            <!-- Custom 3-2-1 Penalty Tie Breaker UI -->
+            <div class="form-group">
+                <label>Tie-Breaker: Penalty Shootout (3-2-1)</label>
+                <span class="help-text">Only use if match ends in a draw. Enter <strong>successful goals</strong> per round.</span>
+                <div class="penalty-panel">
+                    <div class="pen-header">
+                        <span class="pen-label-header"></span>
+                        <span>Round 1<br>(3 Shots)</span>
+                        <span>Round 2<br>(2 Shots)</span>
+                        <span>Round 3<br>(1 Shot)</span>
+                    </div>
+                    <div class="pen-row">
+                        <span class="pen-label" id="penLabelT1">Team 1</span>
+                        <input type="number" id="koT1_p1" min="0" max="3" placeholder="0">
+                        <input type="number" id="koT1_p2" min="0" max="2" placeholder="0">
+                        <input type="number" id="koT1_p3" min="0" max="1" placeholder="0">
+                    </div>
+                    <div class="pen-row">
+                        <span class="pen-label" id="penLabelT2">Team 2</span>
+                        <input type="number" id="koT2_p1" min="0" max="3" placeholder="0">
+                        <input type="number" id="koT2_p2" min="0" max="2" placeholder="0">
+                        <input type="number" id="koT2_p3" min="0" max="1" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
             <button onclick="submitKnockoutMatch()" style="background-color: var(--primary);">Update Knockout Board</button>
 
             <button class="reset-btn" onclick="resetTournament()">Reset Entire Tournament</button>
         </div>
 
         <div class="standings-panel" id="displayPanel">
-            <!-- Group Stage Container -->
             <div id="groupsContainer">
                 <h2>Loading Live Data...</h2>
             </div>
             
-            <!-- Knockout Bracket Container -->
             <div id="bracketContainer" style="display: none;">
                 <h2>Tournament Bracket</h2>
                 <div id="bracketVisual" class="bracket-wrapper"></div>
@@ -334,26 +422,10 @@
         const dbRef = ref(db, 'tournament2026_v3'); 
 
         const initialTeams = {
-            A: [
-                {name: "DURBAR14", logo: "Durbar14.png"},
-                {name: "SEAMATRIX", logo: "Seamatrix.png"},
-                {name: "ALGO04", logo: "Algo.jpeg"}
-            ],
-            B: [
-                {name: "SPARTANS12", logo: "Spartans12.png"},
-                {name: "ELECTRO STRIKERS", logo: "Electro.png"},
-                {name: "SYNTAX05", logo: "Syntax05.png"}
-            ],
-            C: [
-                {name: "VERTEX07", logo: "Vertex07.png"},
-                {name: "PROTTOYI15", logo: "Prottoyi15.png"},
-                {name: "DIGANTA", logo: "Diganta.png"}
-            ],
-            D: [
-                {name: "DEBUG", logo: "Debug.png"},
-                {name: "ABACUS06", logo: "Abacus06.png"},
-                {name: "CAPACITOR", logo: "Capacitor.png"}
-            ]
+            A: [ {name: "DURBAR14", logo: "Durbar14.png"}, {name: "SEAMATRIX", logo: "Seamatrix.png"}, {name: "ALGO04", logo: "Algo.jpeg"} ],
+            B: [ {name: "SPARTANS12", logo: "Spartans12.png"}, {name: "ELECTRO STRIKERS", logo: "Electro.png"}, {name: "SYNTAX05", logo: "Syntax05.png"} ],
+            C: [ {name: "VERTEX07", logo: "Vertex07.png"}, {name: "PROTTOYI15", logo: "Prottoyi15.png"}, {name: "DIGANTA", logo: "Diganta.png"} ],
+            D: [ {name: "DEBUG", logo: "Debug.png"}, {name: "ABACUS06", logo: "Abacus06.png"}, {name: "CAPACITOR", logo: "Capacitor.png"} ]
         };
 
         let tournamentData = {};
@@ -396,19 +468,16 @@
 
         function buildInitialData() {
             tournamentData = { groups: {}, knockout: {} };
-            
             for (let group in initialTeams) {
                 tournamentData.groups[group] = initialTeams[group].map(team => ({
-                    name: team.name, logo: team.logo, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0
+                    name: team.name, logo: team.logo, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, fouls: 0
                 }));
             }
-            
             tournamentData.knockout = {
-                qf: Array(4).fill(null).map((_, i) => ({ id: `QF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "" })),
-                sf: Array(2).fill(null).map((_, i) => ({ id: `SF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "" })),
-                final: [{ id: "Final", team1: "TBD", team2: "TBD", score1: "", score2: "" }]
+                qf: Array(4).fill(null).map((_, i) => ({ id: `QF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "", pen1: "", pen2: "" })),
+                sf: Array(2).fill(null).map((_, i) => ({ id: `SF ${i+1}`, team1: "TBD", team2: "TBD", score1: "", score2: "", pen1: "", pen2: "" })),
+                final: [{ id: "Final", team1: "TBD", team2: "TBD", score1: "", score2: "", pen1: "", pen2: "" }]
             };
-
             set(dbRef, tournamentData); 
         }
 
@@ -445,6 +514,31 @@
                 t1.innerHTML += `<option value="${team}">${team}</option>`;
                 t2.innerHTML += `<option value="${team}">${team}</option>`;
             });
+
+            window.updateKoMatchFields();
+        };
+
+        window.updateKoMatchFields = function() {
+            const stage = document.getElementById('koStageSelect').value;
+            const matchIdx = document.getElementById('koMatchSelect').value;
+            if(!tournamentData.knockout || !tournamentData.knockout[stage][matchIdx]) return;
+            
+            const match = tournamentData.knockout[stage][matchIdx];
+            const t1 = document.getElementById('koTeam1Select');
+            const t2 = document.getElementById('koTeam2Select');
+            
+            // Auto-select teams if they are already assigned to this match
+            if(match.team1 !== "TBD" && Array.from(t1.options).some(opt => opt.value === match.team1)) t1.value = match.team1;
+            if(match.team2 !== "TBD" && Array.from(t2.options).some(opt => opt.value === match.team2)) t2.value = match.team2;
+            
+            window.syncPenLabels();
+        };
+
+        window.syncPenLabels = function() {
+            const t1 = document.getElementById('koTeam1Select').value;
+            const t2 = document.getElementById('koTeam2Select').value;
+            document.getElementById('penLabelT1').innerText = t1 || "Team 1";
+            document.getElementById('penLabelT2').innerText = t2 || "Team 2";
         };
 
         window.submitGroupMatch = function() {
@@ -453,6 +547,8 @@
             const t2Name = document.getElementById('groupTeam2Select').value;
             const t1Score = parseInt(document.getElementById('groupTeam1Score').value);
             const t2Score = parseInt(document.getElementById('groupTeam2Score').value);
+            const t1Fouls = parseInt(document.getElementById('groupTeam1Fouls').value) || 0;
+            const t2Fouls = parseInt(document.getElementById('groupTeam2Fouls').value) || 0;
 
             if (t1Name === t2Name) return alert("A team cannot play against itself!");
             if (isNaN(t1Score) || isNaN(t2Score)) return alert("Please enter valid scores.");
@@ -465,6 +561,9 @@
             team2.gf += t2Score; team2.ga += t1Score;
             team1.gd = team1.gf - team1.ga;
             team2.gd = team2.gf - team2.ga;
+            
+            team1.fouls = (team1.fouls || 0) + t1Fouls;
+            team2.fouls = (team2.fouls || 0) + t2Fouls;
 
             if (t1Score > t2Score) { team1.w++; team1.pts += 3; team2.l++; } 
             else if (t1Score < t2Score) { team2.w++; team2.pts += 3; team1.l++; } 
@@ -473,6 +572,8 @@
             set(dbRef, tournamentData).then(() => {
                 document.getElementById('groupTeam1Score').value = '';
                 document.getElementById('groupTeam2Score').value = '';
+                document.getElementById('groupTeam1Fouls').value = '';
+                document.getElementById('groupTeam2Fouls').value = '';
             });
         };
 
@@ -483,31 +584,62 @@
             const t2Name = document.getElementById('koTeam2Select').value;
             const t1Score = document.getElementById('koTeam1Score').value;
             const t2Score = document.getElementById('koTeam2Score').value;
+            
+            // Check if any penalty field was touched
+            const hasPen1 = document.getElementById('koT1_p1').value !== "" || document.getElementById('koT1_p2').value !== "" || document.getElementById('koT1_p3').value !== "";
+            const hasPen2 = document.getElementById('koT2_p1').value !== "" || document.getElementById('koT2_p2').value !== "" || document.getElementById('koT2_p3').value !== "";
+            
+            let t1TotalPen = "";
+            let t2TotalPen = "";
+
+            // Calculate total penalties based on 3-2-1 logic
+            if (hasPen1 || hasPen2) {
+                let p1_1 = parseInt(document.getElementById('koT1_p1').value) || 0;
+                let p1_2 = parseInt(document.getElementById('koT1_p2').value) || 0;
+                let p1_3 = parseInt(document.getElementById('koT1_p3').value) || 0;
+                t1TotalPen = p1_1 + p1_2 + p1_3;
+
+                let p2_1 = parseInt(document.getElementById('koT2_p1').value) || 0;
+                let p2_2 = parseInt(document.getElementById('koT2_p2').value) || 0;
+                let p2_3 = parseInt(document.getElementById('koT2_p3').value) || 0;
+                t2TotalPen = p2_1 + p2_2 + p2_3;
+            }
 
             tournamentData.knockout[stage][matchIdx].team1 = t1Name;
             tournamentData.knockout[stage][matchIdx].team2 = t2Name;
             tournamentData.knockout[stage][matchIdx].score1 = t1Score;
             tournamentData.knockout[stage][matchIdx].score2 = t2Score;
+            tournamentData.knockout[stage][matchIdx].pen1 = t1TotalPen;
+            tournamentData.knockout[stage][matchIdx].pen2 = t2TotalPen;
 
-            set(dbRef, tournamentData);
+            set(dbRef, tournamentData).then(() => {
+                document.getElementById('koTeam1Score').value = '';
+                document.getElementById('koTeam2Score').value = '';
+                
+                // Reset Penalty Board
+                ['koT1_p1','koT1_p2','koT1_p3','koT2_p1','koT2_p2','koT2_p3'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+            });
         };
 
         window.autoFillQF = function() {
             let ranks = {};
             for (let g in tournamentData.groups) {
-                 ranks[g] = [...tournamentData.groups[g]].sort((a,b) => (b.pts !== a.pts ? b.pts - a.pts : (b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf)));
+                 ranks[g] = [...tournamentData.groups[g]].sort((a,b) => {
+                    if (b.pts !== a.pts) return b.pts - a.pts;
+                    if (b.gd !== a.gd) return b.gd - a.gd;
+                    if (b.gf !== a.gf) return b.gf - a.gf;
+                    return (a.fouls || 0) - (b.fouls || 0); // Tie-breaker: Fewest Fouls
+                 });
             }
             
-            // Standard crossing algorithm: 1A vs 2B, 1C vs 2D, 1B vs 2A, 1D vs 2C
             tournamentData.knockout.qf[0].team1 = ranks['A'][0].name;
             tournamentData.knockout.qf[0].team2 = ranks['B'][1].name;
-            
             tournamentData.knockout.qf[1].team1 = ranks['C'][0].name;
             tournamentData.knockout.qf[1].team2 = ranks['D'][1].name;
-
             tournamentData.knockout.qf[2].team1 = ranks['B'][0].name;
             tournamentData.knockout.qf[2].team2 = ranks['A'][1].name;
-
             tournamentData.knockout.qf[3].team1 = ranks['D'][0].name;
             tournamentData.knockout.qf[3].team2 = ranks['C'][1].name;
 
@@ -527,13 +659,13 @@
             const groupsContainer = document.getElementById('groupsContainer');
             const bracketVisual = document.getElementById('bracketVisual');
             
-            // 1. RENDER GROUP STAGE
             groupsContainer.innerHTML = '<h2>Group Stage Standings</h2>';
             for (let group in tournamentData.groups) {
                 let sortedTeams = [...tournamentData.groups[group]].sort((a, b) => {
                     if (b.pts !== a.pts) return b.pts - a.pts;
                     if (b.gd !== a.gd) return b.gd - a.gd;
-                    return b.gf - a.gf;
+                    if (b.gf !== a.gf) return b.gf - a.gf;
+                    return (a.fouls || 0) - (b.fouls || 0);
                 });
 
                 let html = `
@@ -550,6 +682,7 @@
                                 <th title="Goals For">GF</th>
                                 <th title="Goals Against">GA</th>
                                 <th title="Goal Difference">GD</th>
+                                <th title="Fouls/Cards (Tie-breaker)">Fls</th>
                                 <th title="Points">Pts</th>
                             </tr>
                         </thead>
@@ -560,38 +693,38 @@
                         <td><img src="${team.logo}" class="team-logo" alt="${team.name} Logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiNjYmQ1ZTAiLz48L3N2Zz4='"> ${team.name}</td>
                         <td>${team.mp}</td><td>${team.w}</td>
                         <td>${team.d}</td><td>${team.l}</td><td>${team.gf}</td>
-                        <td>${team.ga}</td><td>${team.gd}</td><td><strong>${team.pts}</strong></td>
+                        <td>${team.ga}</td><td>${team.gd}</td>
+                        <td style="color: #e53e3e; font-weight: bold;">${team.fouls || 0}</td>
+                        <td><strong>${team.pts}</strong></td>
                     </tr>`;
                 });
                 html += `</tbody></table></div>`;
                 groupsContainer.innerHTML += html;
             }
 
-            // 2. RENDER KNOCKOUT BRACKET
             const generateMatchHTML = (match) => {
                 let s1 = match.score1 !== "" ? match.score1 : "-";
                 let s2 = match.score2 !== "" ? match.score2 : "-";
+                let p1 = match.pen1 !== "" ? `<span class="pen-score">(${match.pen1})</span>` : "";
+                let p2 = match.pen2 !== "" ? `<span class="pen-score">(${match.pen2})</span>` : "";
+                
                 return `
                     <div class="bracket-match">
-                        <div class="bracket-team"><span>${match.team1}</span> <span class="bracket-score">${s1}</span></div>
-                        <div class="bracket-team"><span>${match.team2}</span> <span class="bracket-score">${s2}</span></div>
+                        <div class="bracket-team"><span>${match.team1}</span> <div><span class="bracket-score">${s1}</span>${p1}</div></div>
+                        <div class="bracket-team"><span>${match.team2}</span> <div><span class="bracket-score">${s2}</span>${p2}</div></div>
                     </div>
                 `;
             };
 
             let bracketHTML = '';
-            
-            // QF
             bracketHTML += `<div class="bracket-round"><h4>Quarter-Finals</h4>`;
             tournamentData.knockout.qf.forEach(match => { bracketHTML += generateMatchHTML(match); });
             bracketHTML += `</div>`;
 
-            // SF
             bracketHTML += `<div class="bracket-round"><h4>Semi-Finals</h4>`;
             tournamentData.knockout.sf.forEach(match => { bracketHTML += generateMatchHTML(match); });
             bracketHTML += `</div>`;
 
-            // Final
             bracketHTML += `<div class="bracket-round"><h4>Final</h4>`;
             tournamentData.knockout.final.forEach(match => { bracketHTML += generateMatchHTML(match); });
             bracketHTML += `</div>`;
